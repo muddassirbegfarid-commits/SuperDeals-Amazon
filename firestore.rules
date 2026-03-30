@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: products
+    // Document ID: {productId}
+    // Fields:
+    //   - name: string (required)
+    //   - image: string (required)
+    //   - description: string (optional)
+    //   - category: string (required)
+    //   - price: number (required)
+    //   - discount: number (optional)
+    //   - affiliateLink: string (required)
+    //   - clicks: number (required)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "muddassirbegfarid@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'image', 'category', 'price', 'affiliateLink', 'clicks', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.image is string && data.image.size() > 0 &&
+             data.category is string &&
+             data.price is number && data.price >= 0 &&
+             data.discount is number && data.discount >= 0 && data.discount <= 100 &&
+             data.affiliateLink is string && data.affiliateLink.size() > 0 &&
+             data.clicks is number && data.clicks >= 0 &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /products/{productId} {
+      // Anyone can read products
+      allow read: if true;
+
+      // Only admins can create or delete products
+      allow create: if isAdmin() && isValidProduct(request.resource.data);
+      allow delete: if isAdmin();
+
+      // Updates:
+      // 1. Admins can update anything
+      // 2. Public can ONLY increment 'clicks'
+      allow update: if (isAdmin() && isValidProduct(request.resource.data)) || 
+                    (
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clicks']) &&
+                      request.resource.data.clicks == resource.data.clicks + 1
+                    );
+    }
+  }
+}
