@@ -1,18 +1,47 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import Hero from '../components/Hero';
+import FireBanner from '../components/FireBanner';
+import SuperHotDeals from '../components/SuperHotDeals';
 import ProductCard from '../components/ProductCard';
 import TrendingCard from '../components/TrendingCard';
 import AdPlaceholder from '../components/AdPlaceholder';
-import { subscribeToProducts } from '../services/productService';
+import { subscribeToProducts, updateLastShownDates } from '../services/productService';
 import { Product, CATEGORIES } from '../types';
-import { Loader2, TrendingUp, Sparkles } from 'lucide-react';
+import { Loader2, TrendingUp, Sparkles, Flame, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function Home() {
   const { category } = useParams<{ category?: string }>();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fireDeals, setFireDeals] = useState<Product[]>([]);
+  const [weeklyTrending, setWeeklyTrending] = useState<Product[]>([]);
+  const rotationProcessed = React.useRef(false);
+  const bannerLoaded = React.useRef(false);
+
+  useEffect(() => {
+    if (bannerLoaded.current) return;
+    
+    const bannerId = 'adsterra-native-banner';
+    const bannerSrc = 'https://pl29019241.profitablecpmratenetwork.com/97063c5d2bee1dc6de0c0cacfe758e79/invoke.js';
+
+    if (!document.getElementById(bannerId)) {
+      console.log("Adsterra: Injecting native banner script...");
+      const script = document.createElement('script');
+      script.src = bannerSrc;
+      script.id = bannerId;
+      script.async = true;
+      script.setAttribute('data-cfasync', 'false');
+      
+      script.onload = () => console.log("Adsterra: Native banner script loaded successfully");
+      script.onerror = () => console.error("Adsterra: Native banner script failed to load");
+      
+      document.body.appendChild(script);
+    }
+
+    bannerLoaded.current = true;
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -24,52 +53,178 @@ export default function Home() {
     return () => unsubscribe();
   }, [category]);
 
-  // Trending Logic: Top product from each category based on clicks
-  const trendingProducts = useMemo(() => {
-    if (category) return []; // Don't show trending on category pages
-    
+  // Advanced Rotation Logic for Fire Banner (Daily)
+  useEffect(() => {
+    if (products.length === 0 || category || rotationProcessed.current) return;
+
+    const selectFireDeals = async () => {
+      const now = Date.now();
+      const lastUpdate = localStorage.getItem('fire_deals_last_update');
+      const cachedDeals = localStorage.getItem('fire_deals_ids');
+      const targetCount = Math.min(5, products.length);
+
+      // Check if 24 hours have passed
+      if (lastUpdate && cachedDeals && (now - parseInt(lastUpdate)) < 24 * 60 * 60 * 1000) {
+        const ids = JSON.parse(cachedDeals);
+        const selected = products.filter(p => ids.includes(p.id));
+        if (selected.length >= targetCount) {
+          setFireDeals(selected);
+          rotationProcessed.current = true;
+          return;
+        }
+      }
+
+      // Selection Logic: Top products by clicks, excluding recently shown
+      const sortedByClicks = [...products].sort((a, b) => (b.clicks || 0) - (a.clicks || 0));
+      
+      // Exclude products shown in last 24h (if possible)
+      let available = sortedByClicks.filter(p => {
+        if (!p.lastShownDate) return true;
+        const lastShown = p.lastShownDate.toMillis ? p.lastShownDate.toMillis() : new Date(p.lastShownDate).getTime();
+        return (now - lastShown) > 24 * 60 * 60 * 1000;
+      });
+
+      // Fallback if not enough available
+      if (available.length < targetCount) {
+        available = sortedByClicks;
+      }
+
+      // Take top 10 and shuffle to pick 5
+      const top10 = available.slice(0, 10);
+      const shuffled = top10.sort(() => 0.5 - Math.random());
+      const selected = shuffled.slice(0, targetCount);
+
+      setFireDeals(selected);
+      localStorage.setItem('fire_deals_last_update', now.toString());
+      localStorage.setItem('fire_deals_ids', JSON.stringify(selected.map(p => p.id)));
+      
+      // Update lastShownDate in Firebase
+      rotationProcessed.current = true;
+      if (selected.length > 0) {
+        await updateLastShownDates(selected.map(p => p.id as string));
+      }
+    };
+
+    selectFireDeals();
+  }, [products, category]);
+
+  // Trending This Week Logic (3-Day Rotation)
+  useEffect(() => {
+    if (products.length === 0 || category) return;
+
+    const selectWeeklyTrending = () => {
+      const now = Date.now();
+      const lastUpdate = localStorage.getItem('weekly_trending_last_update');
+      const cachedIds = localStorage.getItem('weekly_trending_ids');
+
+      if (lastUpdate && cachedIds && (now - parseInt(lastUpdate)) < 3 * 24 * 60 * 60 * 1000) {
+        const ids = JSON.parse(cachedIds);
+        const selected = products.filter(p => ids.includes(p.id));
+        if (selected.length > 0) {
+          // Only update state if it's different to avoid re-render loop
+          setWeeklyTrending(prev => {
+            const prevIds = prev.map(p => p.id).sort().join(',');
+            const nextIds = selected.map(p => p.id).sort().join(',');
+            return prevIds === nextIds ? prev : selected;
+          });
+          return;
+        }
+      }
+
+      // Calculate Trending Score: clicks + weight for recent clicks
+      const scored = products.map(p => {
+        let score = p.clicks || 0;
+        if (p.lastClickedAt) {
+          const lastClicked = p.lastClickedAt.toMillis ? p.lastClickedAt.toMillis() : new Date(p.lastClickedAt).getTime();
+          const hoursSinceClick = (now - lastClicked) / (1000 * 60 * 60);
+          if (hoursSinceClick < 72) {
+            score += (72 - hoursSinceClick) * 0.5; // Weight recent clicks
+          }
+        }
+        return { ...p, trendingScore: score };
+      });
+
+      const sorted = scored.sort((a, b) => b.trendingScore - a.trendingScore).slice(0, 10);
+      setWeeklyTrending(sorted);
+      localStorage.setItem('weekly_trending_last_update', now.toString());
+      localStorage.setItem('weekly_trending_ids', JSON.stringify(sorted.map(p => p.id)));
+    };
+
+    selectWeeklyTrending();
+  }, [products, category]);
+
+  // Category Trending Logic
+  const trendingByCategory = useMemo(() => {
+    if (category) return [];
     const topPerCategory: Product[] = [];
-    
     CATEGORIES.forEach(cat => {
       const catProducts = products.filter(p => p.category === cat);
       if (catProducts.length > 0) {
-        // Sort by clicks descending
         const sorted = [...catProducts].sort((a, b) => (b.clicks || 0) - (a.clicks || 0));
-        // If top product has 0 clicks, it's still "trending" as a new arrival fallback
         topPerCategory.push(sorted[0]);
       }
     });
-
-    // Sort the final trending list by clicks to show the absolute best first
     return topPerCategory.sort((a, b) => (b.clicks || 0) - (a.clicks || 0));
   }, [products, category]);
 
   return (
     <div className="bg-[#eaeded] min-h-screen pb-12">
-      {!category && <Hero />}
+      {!category && (
+        <>
+          <SuperHotDeals products={products} />
+          {fireDeals.length > 0 ? <FireBanner products={fireDeals} /> : <Hero />}
+        </>
+      )}
       
       <div className="max-w-[1500px] mx-auto px-4 -mt-20 relative z-10">
-        <AdPlaceholder type="banner" />
+        <div className="my-8">
+          <div id="container-97063c5d2bee1dc6de0c0cacfe758e79"></div>
+        </div>
 
-        {/* Trending Section */}
-        {!category && trendingProducts.length > 0 && (
+        {/* Trending This Week Section */}
+        {!category && weeklyTrending.length > 0 && (
+          <section className="mb-12">
+            <div className="flex items-center gap-3 mb-6 bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-600">
+              <div className="bg-blue-100 p-2 rounded-full">
+                <TrendingUp className="text-blue-600" size={24} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">🔥 Trending This Week</h2>
+                <p className="text-sm text-gray-500 font-medium">Updated every 72 hours based on user activity</p>
+              </div>
+              <div className="ml-auto flex items-center gap-2 text-blue-600 font-bold text-xs">
+                <Clock size={14} />
+                NEXT UPDATE IN {Math.max(0, Math.ceil((3 * 24 * 60 * 60 * 1000 - (Date.now() - parseInt(localStorage.getItem('weekly_trending_last_update') || '0'))) / (1000 * 60 * 60)))} HOURS
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Highlight Top Product */}
+              <div className="md:col-span-2 lg:col-span-2">
+                <ProductCard product={weeklyTrending[0]} isTrending />
+              </div>
+              {weeklyTrending.slice(1, 5).map((product) => (
+                <ProductCard key={`weekly-${product.id}`} product={product} isTrending />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Category Trending Section */}
+        {!category && trendingByCategory.length > 0 && (
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-6 bg-white p-4 rounded-lg shadow-sm border-l-4 border-orange-500">
               <div className="bg-orange-100 p-2 rounded-full">
                 <TrendingUp className="text-orange-600" size={24} />
               </div>
               <div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Trending Now</h2>
-                <p className="text-sm text-gray-500 font-medium">Top picks based on popularity across categories</p>
-              </div>
-              <div className="ml-auto hidden md:flex items-center gap-2 text-orange-600 font-bold text-sm animate-pulse">
-                <Sparkles size={16} />
-                LIVE UPDATES
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Top Picks by Category</h2>
+                <p className="text-sm text-gray-500 font-medium">The most popular deal in every department</p>
               </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {trendingProducts.slice(0, 8).map((product, index) => (
+              {trendingByCategory.slice(0, 8).map((product, index) => (
                 <TrendingCard 
                   key={`trending-${product.id}`} 
                   product={product} 

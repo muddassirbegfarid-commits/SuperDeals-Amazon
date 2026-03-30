@@ -8,7 +8,9 @@ export interface Product {
   discount: number;
   affiliateLink: string;
   clicks: number;
-  createdAt: string;
+  createdAt: any;
+  lastShownDate?: any;
+  lastClickedAt?: any;
 }
 
 export type Category = 

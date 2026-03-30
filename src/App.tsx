@@ -1,17 +1,55 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
+  const globalScriptsLoaded = useRef(false);
+
+  useEffect(() => {
+    if (globalScriptsLoaded.current) return;
+    
+    console.log("Adsterra: Injecting global popunder scripts...");
+    
+    const globalScripts = [
+      { src: 'https://pl29019239.profitablecpmratenetwork.com/31/89/e6/3189e6b29da819c917ece2ba815c49b5.js', id: 'adsterra-popunder-1' },
+      { src: 'https://pl29019240.profitablecpmratenetwork.com/26/6d/c7/266dc76d142cf5055f43c70df7afb905.js', id: 'adsterra-popunder-2' }
+    ];
+
+    globalScripts.forEach(s => {
+      if (!document.getElementById(s.id)) {
+        const script = document.createElement('script');
+        script.src = s.src;
+        script.id = s.id;
+        script.async = true;
+        
+        script.onload = () => console.log(`Adsterra: Global script loaded: ${s.id}`);
+        script.onerror = () => console.error(`Adsterra: Global script failed: ${s.id}`);
+        
+        document.body.appendChild(script);
+      }
+    });
+
+    globalScriptsLoaded.current = true;
+  }, []);
+
   return (
     <Router>
       <div className="min-h-screen flex flex-col font-sans text-[#0F1111]">
         <Routes>
           {/* Admin routes without main navbar */}
           <Route path="/admin" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route 
+            path="/admin/dashboard" 
+            element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Public routes with main navbar */}
           <Route 

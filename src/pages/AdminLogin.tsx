@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, Mail, Loader2, AlertCircle, Chrome } from 'lucide-react';
@@ -16,8 +16,13 @@ export default function AdminLogin() {
     setLoading(true);
     setError('');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate('/admin/dashboard');
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      if (result.user.email === 'muddassirbegfarid@gmail.com') {
+        navigate('/admin/dashboard');
+      } else {
+        await signOut(auth);
+        throw new Error('Unauthorized: This account is not an admin.');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to login. Please check your credentials.');
     } finally {

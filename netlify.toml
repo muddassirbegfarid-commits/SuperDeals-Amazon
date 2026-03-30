@@ -1,0 +1,9 @@
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "ALLOWALL"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer-when-downgrade"
+    # Permissive CSP for Adsterra and other ad networks
+    Content-Security-Policy = "default-src 'self' https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.profitablecpmratenetwork.com https://*.adsterra.com https://*.doubleclick.net https://*.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src * data:; frame-src *; connect-src *;"

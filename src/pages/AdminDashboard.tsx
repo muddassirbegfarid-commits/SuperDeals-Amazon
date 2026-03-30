@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from '../lib/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Plus, 
   LogOut, 
@@ -14,7 +14,8 @@ import {
   X,
   Save,
   Image as ImageIcon,
-  ExternalLink
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react';
 import { subscribeToProducts, addProduct, updateProduct, deleteProduct } from '../services/productService';
 import { Product, CATEGORIES } from '../types';
@@ -22,6 +23,7 @@ import { Product, CATEGORIES } from '../types';
 export default function AdminDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
@@ -36,22 +38,33 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user || user.email !== 'muddassirbegfarid@gmail.com') {
-        navigate('/admin');
-      }
-    });
-    return () => unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
     setLoading(true);
+    setError(null);
     const unsubscribe = subscribeToProducts((data) => {
       setProducts(data);
+      setLoading(false);
+    }, undefined, (err) => {
+      console.error("Dashboard subscription error:", err);
+      setError("Failed to load products. You might not have permission.");
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const editId = params.get('edit');
+    if (editId && products.length > 0) {
+      const productToEdit = products.find(p => p.id === editId);
+      if (productToEdit) {
+        openEditModal(productToEdit);
+        // Clear the param so it doesn't reopen on every render
+        navigate('/admin/dashboard', { replace: true });
+      }
+    }
+  }, [location.search, products, navigate]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -60,6 +73,7 @@ export default function AdminDashboard() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     try {
       if (editingProduct?.id) {
         await updateProduct(editingProduct.id, formData);
@@ -77,25 +91,47 @@ export default function AdminDashboard() {
         discount: 0,
         affiliateLink: ''
       });
-    } catch (error) {
-      alert('Error saving product');
+    } catch (err: any) {
+      console.error("Save error:", err);
+      let message = 'Error saving product';
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.error.includes('insufficient permissions')) {
+          message = "Permission denied: You don't have access to save products.";
+        } else {
+          message = parsed.error;
+        }
+      } catch {
+        message = err.message || message;
+      }
+      setError(message);
     }
   };
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
+    setError(null);
     try {
       await deleteProduct(id);
       setDeleteConfirmId(null);
-    } catch (error) {
-      console.error("Delete failed:", error);
-      alert("Failed to delete product");
+    } catch (err: any) {
+      console.error("Delete failed:", err);
+      let message = 'Failed to delete product';
+      try {
+        const parsed = JSON.parse(err.message);
+        message = parsed.error;
+      } catch {
+        message = err.message || message;
+      }
+      setError(message);
+      setDeleteConfirmId(null);
     }
   };
 
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
+    setError(null);
     setFormData({
       name: product.name,
       image: product.image,
@@ -170,6 +206,7 @@ export default function AdminDashboard() {
           <button 
             onClick={() => {
               setEditingProduct(null);
+              setError(null);
               setFormData({
                 name: '',
                 image: '',
@@ -186,6 +223,13 @@ export default function AdminDashboard() {
             <Plus size={20} /> Add New Product
           </button>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 flex items-center gap-3 text-red-700">
+            <AlertCircle size={20} />
+            <p className="text-sm font-medium">{error}</p>
+          </div>
+        )}
 
         {/* Products Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
