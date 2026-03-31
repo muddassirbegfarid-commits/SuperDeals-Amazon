@@ -1,10 +1,13 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
+import BlogPost from './pages/BlogPost';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ShoppingCart, Facebook, Twitter, Instagram, Youtube, Mail, MapPin, Phone, ArrowUp } from 'lucide-react';
 
 function App() {
   const globalScriptsLoaded = useRef(false);
@@ -15,7 +18,6 @@ function App() {
     console.log("Adsterra: Injecting global popunder scripts...");
     
     const globalScripts = [
-      { src: 'https://pl29019239.profitablecpmratenetwork.com/31/89/e6/3189e6b29da819c917ece2ba815c49b5.js', id: 'adsterra-popunder-1' },
       { src: 'https://pl29019240.profitablecpmratenetwork.com/26/6d/c7/266dc76d142cf5055f43c70df7afb905.js', id: 'adsterra-popunder-2' }
     ];
 
@@ -36,9 +38,33 @@ function App() {
     globalScriptsLoaded.current = true;
   }, []);
 
+  const bannerInjected = useRef(false);
+
+  useEffect(() => {
+    if (bannerInjected.current) return;
+    
+    const bannerContainer = document.getElementById('adsterra-bottom-banner');
+    if (bannerContainer) {
+      // @ts-ignore
+      window.atOptions = {
+        'key' : '4f6fd1f0acd9796b4c47c9c4972bf5e8',
+        'format' : 'iframe',
+        'height' : 90,
+        'width' : 728,
+        'params' : {}
+      };
+      
+      const script = document.createElement('script');
+      script.src = 'https://www.highperformanceformat.com/4f6fd1f0acd9796b4c47c9c4972bf5e8/invoke.js';
+      script.async = true;
+      bannerContainer.appendChild(script);
+      bannerInjected.current = true;
+    }
+  }, []);
+
   return (
     <Router>
-      <div className="min-h-screen flex flex-col font-sans text-[#0F1111]">
+      <div className="min-h-screen flex flex-col font-sans text-secondary bg-background">
         <Routes>
           {/* Admin routes without main navbar */}
           <Route path="/admin" element={<AdminLogin />} />
@@ -61,53 +87,97 @@ function App() {
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/category/:category" element={<Home />} />
+                    <Route path="/blog/best-wireless-earbuds-under-2000-india-2026" element={<BlogPost />} />
                   </Routes>
                 </main>
-                <footer className="bg-[#232f3e] text-white">
-                  <button 
-                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                    className="w-full bg-[#37475a] hover:bg-[#485769] py-4 text-sm font-medium transition-colors"
-                  >
-                    Back to top
-                  </button>
-                  <div className="max-w-7xl mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
-                    <div>
-                      <h4 className="font-bold mb-4">Get to Know Us</h4>
-                      <ul className="text-sm space-y-2 text-gray-300">
-                        <li className="hover:underline cursor-pointer">About Us</li>
-                        <li className="hover:underline cursor-pointer">Careers</li>
-                        <li className="hover:underline cursor-pointer">Press Releases</li>
-                      </ul>
+                
+                <footer className="bg-secondary text-white pt-20 pb-10">
+                  <div className="max-w-[1500px] mx-auto px-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+                      <div className="space-y-6">
+                        <Link to="/" className="flex items-center gap-1 group">
+                          <div className="bg-primary p-1.5 rounded-lg">
+                            <ShoppingCart className="text-white" size={24} />
+                          </div>
+                          <div className="flex flex-col leading-none">
+                            <span className="text-2xl font-black text-white tracking-tighter">SuperDeals</span>
+                            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Expert Picks 2026</span>
+                          </div>
+                        </Link>
+                        <p className="text-gray-400 text-sm leading-relaxed">
+                          Your trusted source for the best product deals and expert reviews in India. We help you make smarter buying decisions with real-time price tracking and expert analysis.
+                        </p>
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 bg-white/5 hover:bg-primary transition-colors rounded-lg cursor-pointer"><Facebook size={18} /></div>
+                          <div className="p-2 bg-white/5 hover:bg-primary transition-colors rounded-lg cursor-pointer"><Twitter size={18} /></div>
+                          <div className="p-2 bg-white/5 hover:bg-primary transition-colors rounded-lg cursor-pointer"><Instagram size={18} /></div>
+                          <div className="p-2 bg-white/5 hover:bg-primary transition-colors rounded-lg cursor-pointer"><Youtube size={18} /></div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-lg font-bold mb-6">Quick Links</h4>
+                        <ul className="space-y-4 text-sm text-gray-400">
+                          <li className="hover:text-primary transition-colors cursor-pointer">About SuperDeals</li>
+                          <li className="hover:text-primary transition-colors cursor-pointer">Expert Reviews</li>
+                          <li className="hover:text-primary transition-colors cursor-pointer">Buying Guides</li>
+                          <li className="hover:text-primary transition-colors cursor-pointer">Latest Deals</li>
+                          <li className="hover:text-primary transition-colors cursor-pointer">Trending Now</li>
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h4 className="text-lg font-bold mb-6">Support</h4>
+                        <ul className="space-y-4 text-sm text-gray-400">
+                          <li className="hover:text-primary transition-colors cursor-pointer">Contact Us</li>
+                          <li className="hover:text-primary transition-colors cursor-pointer">Privacy Policy</li>
+                          <li className="hover:text-primary transition-colors cursor-pointer">Terms of Service</li>
+                          <li className="hover:text-primary transition-colors cursor-pointer">Affiliate Disclaimer</li>
+                          <li className="hover:text-primary transition-colors cursor-pointer">Cookie Policy</li>
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h4 className="text-lg font-bold mb-6">Contact Info</h4>
+                        <ul className="space-y-4 text-sm text-gray-400">
+                          <li className="flex items-center gap-3"><MapPin size={18} className="text-primary" /> New Delhi, India</li>
+                          <li className="flex items-center gap-3"><Phone size={18} className="text-primary" /> +91 98765 43210</li>
+                          <li className="flex items-center gap-3"><Mail size={18} className="text-primary" /> contact@superdeals.com</li>
+                        </ul>
+                        <div className="mt-8 p-4 bg-white/5 rounded-2xl border border-white/10">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Newsletter</p>
+                          <div className="flex gap-2">
+                            <input type="text" placeholder="Email" className="bg-transparent border-none focus:ring-0 text-xs flex-1" />
+                            <button className="bg-primary p-2 rounded-lg"><Mail size={14} /></button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold mb-4">Connect with Us</h4>
-                      <ul className="text-sm space-y-2 text-gray-300">
-                        <li className="hover:underline cursor-pointer">Facebook</li>
-                        <li className="hover:underline cursor-pointer">Twitter</li>
-                        <li className="hover:underline cursor-pointer">Instagram</li>
-                      </ul>
+
+                    <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-6">
+                      <div className="text-center md:text-left">
+                        <p className="text-xs text-gray-500 mb-2">
+                          © 2026 SuperDeals India. All rights reserved. 
+                        </p>
+                        <p className="text-[10px] text-gray-600 max-w-2xl italic">
+                          Disclaimer: As an Amazon Associate, we earn from qualifying purchases. This means we may earn a small commission if you buy through our links, at no extra cost to you.
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="p-4 bg-primary hover:bg-[#e68a00] text-white rounded-2xl shadow-lg transition-all active:scale-90"
+                      >
+                        <ArrowUp size={24} />
+                      </button>
                     </div>
-                    <div>
-                      <h4 className="font-bold mb-4">Make Money with Us</h4>
-                      <ul className="text-sm space-y-2 text-gray-300">
-                        <li className="hover:underline cursor-pointer">Sell on Amazon</li>
-                        <li className="hover:underline cursor-pointer">Become an Affiliate</li>
-                        <li className="hover:underline cursor-pointer">Advertise Your Products</li>
-                      </ul>
+
+                    <div className="mt-12 flex justify-center overflow-hidden">
+                      <div id="adsterra-bottom-banner"></div>
                     </div>
-                    <div>
-                      <h4 className="font-bold mb-4">Let Us Help You</h4>
-                      <ul className="text-sm space-y-2 text-gray-300">
-                        <li className="hover:underline cursor-pointer">COVID-19 and Amazon</li>
-                        <li className="hover:underline cursor-pointer">Your Account</li>
-                        <li className="hover:underline cursor-pointer">Help</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="mt-12 pt-8 border-t border-gray-700 text-center text-xs text-gray-400">
-                    <p>© 2026 SuperDeals on Amazon. All rights reserved. This site is an affiliate store.</p>
                   </div>
                 </footer>
+                
+                <BottomNav />
               </>
             } 
           />

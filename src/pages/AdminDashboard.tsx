@@ -26,10 +26,20 @@ export default function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    image: string;
+    description: string;
+    features: string[];
+    category: string;
+    price: number;
+    discount: number;
+    affiliateLink: string;
+  }>({
     name: '',
     image: '',
     description: '',
+    features: [],
     category: CATEGORIES[0],
     price: 0,
     discount: 0,
@@ -86,6 +96,7 @@ export default function AdminDashboard() {
         name: '',
         image: '',
         description: '',
+        features: [],
         category: CATEGORIES[0],
         price: 0,
         discount: 0,
@@ -136,6 +147,7 @@ export default function AdminDashboard() {
       name: product.name,
       image: product.image,
       description: product.description,
+      features: product.features || [],
       category: product.category as any,
       price: product.price,
       discount: product.discount,
@@ -211,6 +223,7 @@ export default function AdminDashboard() {
                 name: '',
                 image: '',
                 description: '',
+                features: [],
                 category: CATEGORIES[0],
                 price: 0,
                 discount: 0,
@@ -423,11 +436,22 @@ export default function AdminDashboard() {
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                   <textarea 
-                    rows={3}
+                    rows={2}
                     value={formData.description}
                     onChange={(e) => setFormData({...formData, description: e.target.value})}
                     className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none"
                     placeholder="Brief product highlights..."
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Key Features (comma separated)</label>
+                  <input 
+                    type="text" 
+                    value={formData.features ? formData.features.join(', ') : ''}
+                    onChange={(e) => setFormData({...formData, features: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
+                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 outline-none"
+                    placeholder="e.g. 5G Support, 120Hz Display, 5000mAh Battery"
                   />
                 </div>
               </div>

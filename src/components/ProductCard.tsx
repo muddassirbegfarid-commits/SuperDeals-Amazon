@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { ExternalLink, TrendingUp, Trash2, Edit2 } from 'lucide-react';
+import { ExternalLink, Trash2, Edit2, Star, Zap, ShieldCheck, Award, TrendingUp, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 import { trackClick, deleteProduct } from '../services/productService';
 import { auth } from '../lib/firebase';
@@ -25,10 +25,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTrending }) => {
   }, [product.createdAt]);
 
   const badge = useMemo(() => {
-    if (product.clicks > 20) return { text: '🔥 Burning', color: 'bg-red-600' };
-    if (product.clicks > 10) return { text: '🔥 Hot', color: 'bg-orange-500' };
-    if (isTrending) return { text: '📈 Trending', color: 'bg-blue-600' };
-    if (isNew) return { text: '🆕 New', color: 'bg-green-600' };
+    if (product.clicks > 20) return { text: '🔥 Burning', color: 'bg-red-500', icon: <Zap size={10} /> };
+    if (product.clicks > 10) return { text: '🔥 Hot', color: 'bg-orange-500', icon: <Zap size={10} /> };
+    if (isTrending) return { text: '📈 Trending', color: 'bg-blue-600', icon: <TrendingUp size={10} /> };
+    if (isNew) return { text: '🆕 New', color: 'bg-green-600', icon: <Sparkles size={10} /> };
     return null;
   }, [product.clicks, isTrending, isNew]);
 
@@ -52,7 +52,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTrending }) => {
     e.stopPropagation();
     if (product.id) {
       await deleteProduct(product.id);
-      // No reload needed, onSnapshot handles it
     }
   };
 
@@ -68,97 +67,134 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, isTrending }) => {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -5 }}
-      className="bg-white p-4 flex flex-col border border-gray-200 rounded-sm hover:shadow-lg transition-shadow h-full"
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      whileHover={{ y: -8 }}
+      className="group bg-white flex flex-col rounded-2xl overflow-hidden shadow-soft hover:shadow-hover transition-all duration-300 h-full border border-gray-100 relative"
     >
-      <div className="relative h-48 flex items-center justify-center overflow-hidden bg-gray-50 rounded-sm">
-        <img 
-          src={product.image} 
-          alt={product.name} 
-          className="max-h-full max-w-full object-contain p-2"
-          referrerPolicy="no-referrer"
-          loading="lazy"
-        />
+      {/* Badges */}
+      <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
         {badge && (
-          <div className={`absolute top-0 left-0 ${badge.color} text-white text-[10px] font-bold px-2 py-1 rounded-br-md z-10 shadow-sm`}>
-            {badge.text}
+          <div className={`${badge.color} text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm`}>
+            {badge.icon} {badge.text}
           </div>
         )}
-        {product.discount > 0 && !badge && (
-          <div className="absolute top-0 left-0 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-br-md">
-            {product.discount}% OFF
+        {product.discount > 20 && (
+          <div className="bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+            🔥 Deal: {product.discount}% OFF
           </div>
         )}
       </div>
 
-      <div className="flex flex-col flex-1 mt-[10px]">
-        <h3 className="text-[#007185] text-sm font-medium line-clamp-2 mb-1 min-h-[2.5rem] hover:text-[#C7511F] hover:underline cursor-pointer overflow-hidden">
+      {/* Image Section */}
+      <div className="relative h-56 flex items-center justify-center overflow-hidden bg-white p-6 product-card-zoom">
+        <img 
+          src={product.image} 
+          alt={product.name} 
+          className="max-h-full max-w-full object-contain transition-transform duration-500"
+          referrerPolicy="no-referrer"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+      </div>
+
+      {/* Content Section */}
+      <div className="flex flex-col flex-1 p-5 pt-2">
+        {/* Category & Rating */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{product.category}</span>
+          <div className="flex items-center gap-1 bg-orange-50 px-2 py-0.5 rounded-full">
+            <Star size={10} className="text-orange-500 fill-orange-500" />
+            <span className="text-[10px] font-bold text-orange-700">4.8</span>
+          </div>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-secondary text-sm md:text-base font-bold line-clamp-2 mb-2 min-h-[2.5rem] group-hover:text-primary transition-colors cursor-pointer leading-tight">
           {product.name}
         </h3>
 
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex text-orange-400 text-xs">
-            {"★".repeat(4)}{"☆".repeat(1)}
+        {/* Short Description */}
+        <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">
+          {product.description}
+        </p>
+
+        {/* Features / Best For */}
+        <div className="mb-4 space-y-2">
+          {product.features && product.features.length > 0 && (
+            <div className="space-y-1">
+              {product.features.slice(0, 3).map((feature, i) => (
+                <div key={i} className="flex items-start gap-2 text-[10px] text-gray-600">
+                  <div className="w-1 h-1 rounded-full bg-primary mt-1.5 shrink-0"></div>
+                  <span className="font-medium">{feature}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-[11px] text-gray-500 pt-1">
+            <ShieldCheck size={12} className="text-green-500" />
+            <span className="font-medium italic">Trusted Review</span>
           </div>
-          <span className="text-xs text-[#007185] hover:text-[#C7511F] hover:underline cursor-pointer">
-            {product.clicks > 0 ? `${product.clicks} views` : 'New Arrival'}
-          </span>
+          <div className="flex items-center gap-2 text-[11px] text-gray-500">
+            <Award size={12} className="text-blue-500" />
+            <span className="font-medium">Best for: <span className="text-secondary font-bold">{product.category === 'Mobiles' ? 'Performance' : 'Value'}</span></span>
+          </div>
         </div>
 
+        {/* Price Section */}
         <div className="mt-auto">
-          <div className="flex items-baseline gap-1 mb-2">
-            <span className="text-lg font-bold">₹{Math.floor(discountedPrice).toLocaleString()}<sup>00</sup></span>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex flex-col">
+              <span className="text-xs text-gray-400 line-through font-medium">₹{product.price.toLocaleString()}</span>
+              <span className="text-xl font-black text-secondary">₹{Math.floor(discountedPrice).toLocaleString()}</span>
+            </div>
             {product.discount > 0 && (
-              <span className="text-xs text-gray-500 line-through">₹{product.price.toLocaleString()}</span>
+              <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-lg">
+                Save ₹{(product.price - discountedPrice).toLocaleString()}
+              </span>
             )}
           </div>
-          
-          <p className="text-xs text-gray-600 mb-4 line-clamp-2 h-8 overflow-hidden">
-            {product.description}
-          </p>
 
           <button 
             onClick={handleViewOnAmazon}
-            className="w-full bg-[#FFD814] hover:bg-[#F7CA00] text-black py-2 rounded-full text-sm font-medium flex items-center justify-center gap-2 shadow-sm border border-[#FCD200]"
+            className="w-full btn-amazon flex items-center justify-center gap-2 text-sm"
           >
-            View on Amazon <ExternalLink size={14} />
+            Check on Amazon <ExternalLink size={16} />
           </button>
         </div>
 
+        {/* Admin Controls */}
         {isAdmin && (
-          <div className="mt-2 flex flex-col gap-2">
+          <div className="mt-4 pt-4 border-t border-gray-100 flex gap-2">
             <button 
               onClick={handleEdit}
-              className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 py-2 rounded-full text-xs font-medium flex items-center justify-center gap-2 border border-blue-200 transition-colors"
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-xl transition-colors flex justify-center"
+              title="Edit"
             >
-              <Edit2 size={12} /> Edit Product (Admin)
+              <Edit2 size={16} />
             </button>
-
             {!showDeleteConfirm ? (
               <button 
                 onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
-                className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-full text-xs font-medium flex items-center justify-center gap-2 border border-red-200 transition-colors"
+                className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-xl transition-colors flex justify-center"
+                title="Delete"
               >
-                <Trash2 size={12} /> Delete Product (Admin)
+                <Trash2 size={16} />
               </button>
             ) : (
-              <div className="flex flex-col gap-2 p-2 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-[10px] text-red-700 font-bold text-center">Confirm Delete?</p>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }}
-                    className="flex-1 bg-white text-gray-600 py-1 rounded text-[10px] font-bold border border-gray-300"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleDelete}
-                    className="flex-1 bg-red-600 text-white py-1 rounded text-[10px] font-bold"
-                  >
-                    Yes, Delete
-                  </button>
-                </div>
+              <div className="flex-1 flex gap-1">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(false); }}
+                  className="flex-1 bg-gray-200 text-gray-600 p-1 rounded-lg text-[10px] font-bold"
+                >
+                  No
+                </button>
+                <button 
+                  onClick={handleDelete}
+                  className="flex-1 bg-red-600 text-white p-1 rounded-lg text-[10px] font-bold"
+                >
+                  Yes
+                </button>
               </div>
             )}
           </div>
